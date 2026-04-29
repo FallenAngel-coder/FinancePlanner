@@ -2,12 +2,11 @@
 
 public class DatabaseInitializer
 {
-    private const string connectionString = "Data Source=finance.db";
 
     public static void Initialize()
     {
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var connection = DatabaseConnectionFactory.CreateConnection();
+
 
         var command = connection.CreateCommand();
 
@@ -37,6 +36,7 @@ public class DatabaseInitializer
             FOREIGN KEY (CategoryId) REFERENCES Categories(Id)
         );
         ";
+    
 
         command.ExecuteNonQuery();
     }

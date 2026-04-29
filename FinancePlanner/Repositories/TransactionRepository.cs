@@ -5,12 +5,11 @@ using System.Transactions;
 
 public class TransactionRepository
 {
-    private const string connectionString = "Data Source=finance.db";
-
+    
     public void Add(Transaction transaction)
     {
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var connection = DatabaseConnectionFactory.CreateConnection();
+
 
         var command = connection.CreateCommand();
         command.CommandText = @"
@@ -31,8 +30,8 @@ public class TransactionRepository
     {
         var list = new List<Transaction>();
 
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+        using var connection = DatabaseConnectionFactory.CreateConnection();
+
 
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM Transactions";
@@ -57,8 +56,8 @@ public class TransactionRepository
 
     public void Delete(int id)
     {
-        using var connection = new SqliteConnection(connectionString);
-        connection.Open();
+       using var connection = DatabaseConnectionFactory.CreateConnection();
+
 
         var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM Transactions WHERE Id = $id";
