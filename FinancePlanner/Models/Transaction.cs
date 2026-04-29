@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 public class Transaction
 {
@@ -13,4 +13,6 @@ public class Transaction
     public string Type { get; set; } = ""; 
 
     public string Description { get; set; } = "";
+
+    public int UserId { get; set; }
 }
