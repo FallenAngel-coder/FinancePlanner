@@ -2,8 +2,6 @@ using Microsoft.Data.Sqlite;
 
 public class DatabaseInitializer
 {
-    private const string connectionString = "Data Source=finance.db";
-
     public static void Initialize()
     {
         var connection = DatabaseConnection.Instance.GetConnection();

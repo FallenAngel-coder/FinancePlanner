@@ -9,9 +9,6 @@ using FinancePlanner.Services;
 /// </summary>
 public class TransactionRepository
 {
-    // Рядок підключення. У майбутньому варто винести в конфігураційний файл.
-    private const string connectionString = "Data Source=finance.db";
-
     public void Add(Transaction transaction)
     {
         // Використовуємо єдине підключення з Singleton
