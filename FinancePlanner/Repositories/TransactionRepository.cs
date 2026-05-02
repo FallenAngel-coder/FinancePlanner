@@ -72,6 +72,34 @@ public class TransactionRepository
         return list;
     }
 
+    public void Update(Transaction transaction)
+    {
+        var connection = DatabaseConnection.Instance.GetConnection();
+        var command = connection.CreateCommand();
+
+        command.CommandText = @"
+            UPDATE Transactions 
+            SET Amount = $amount, 
+                Date = $date, 
+                CategoryId = $categoryId, 
+                Type = $type, 
+                Description = $description 
+            WHERE Id = $id AND UserId = $userId;
+            ";
+
+        command.Parameters.AddWithValue("$amount", transaction.Amount);
+        command.Parameters.AddWithValue("$date", transaction.Date.ToString("yyyy-MM-dd HH:mm:ss"));
+        command.Parameters.AddWithValue("$categoryId", transaction.CategoryId == 0 ? (object)DBNull.Value : transaction.CategoryId);
+        command.Parameters.AddWithValue("$type", transaction.Type);
+        command.Parameters.AddWithValue("$description", transaction.Description ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$id", transaction.Id);
+        
+        int currentUserId = SessionManager.Instance.CurrentUser?.Id ?? 0;
+        command.Parameters.AddWithValue("$userId", currentUserId);
+
+        command.ExecuteNonQuery();
+    }
+
     public void Delete(int id)
     {
         var connection = DatabaseConnection.Instance.GetConnection();
@@ -80,6 +108,44 @@ public class TransactionRepository
         command.CommandText = "DELETE FROM Transactions WHERE Id = $id";
         command.Parameters.AddWithValue("$id", id);
 
+        command.ExecuteNonQuery();
+    }
+
+    public void ReassignTransactionsToNoCategory(int categoryId, int? year = null, int? month = null, bool fromDateOnwards = false)
+    {
+        ReassignTransactions(categoryId, null, year, month, fromDateOnwards);
+    }
+
+    public void ReassignTransactions(int oldCategoryId, int? newCategoryId, int? year = null, int? month = null, bool fromDateOnwards = false)
+    {
+        var connection = DatabaseConnection.Instance.GetConnection();
+        var command = connection.CreateCommand();
+        
+        string sql = "UPDATE Transactions SET CategoryId = $newCatId WHERE CategoryId = $oldCatId AND UserId = $userId";
+        
+        command.Parameters.AddWithValue("$oldCatId", oldCategoryId);
+        command.Parameters.AddWithValue("$newCatId", newCategoryId.HasValue && newCategoryId.Value != 0 ? (object)newCategoryId.Value : DBNull.Value);
+        
+        int currentUserId = SessionManager.Instance.CurrentUser?.Id ?? 0;
+        command.Parameters.AddWithValue("$userId", currentUserId);
+
+        if (year.HasValue && month.HasValue)
+        {
+            if (fromDateOnwards)
+            {
+                string dateStr = $"{year.Value}-{month.Value:D2}-01";
+                sql += " AND Date >= $date";
+                command.Parameters.AddWithValue("$date", dateStr);
+            }
+            else
+            {
+                sql += " AND strftime('%Y', Date) = $yearStr AND strftime('%m', Date) = $monthStr";
+                command.Parameters.AddWithValue("$yearStr", year.Value.ToString());
+                command.Parameters.AddWithValue("$monthStr", month.Value.ToString("D2"));
+            }
+        }
+
+        command.CommandText = sql;
         command.ExecuteNonQuery();
     }
 }

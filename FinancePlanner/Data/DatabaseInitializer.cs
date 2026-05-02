@@ -61,5 +61,32 @@ public class DatabaseInitializer
             alterCategoriesCommand.ExecuteNonQuery();
         }
         catch { /* Ігноруємо помилку, якщо колонка вже існує */ }
+
+        try
+        {
+            var alterCategoriesCommand2 = connection.CreateCommand();
+            alterCategoriesCommand2.CommandText = "ALTER TABLE Categories ADD COLUMN ProjectedAmount REAL DEFAULT 0;";
+            alterCategoriesCommand2.ExecuteNonQuery();
+        }
+        catch { /* Ігноруємо помилку, якщо колонка вже існує */ }
+
+        void SafeAddColumn(string cmdText)
+        {
+            try
+            {
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = cmdText;
+                cmd.ExecuteNonQuery();
+            }
+            catch { /* Ігноруємо помилку, якщо колонка вже існує */ }
+        }
+
+        SafeAddColumn("ALTER TABLE Categories ADD COLUMN IsRecurring INTEGER DEFAULT 1;");
+        SafeAddColumn("ALTER TABLE Categories ADD COLUMN TargetMonth INTEGER DEFAULT 0;");
+        SafeAddColumn("ALTER TABLE Categories ADD COLUMN TargetYear INTEGER DEFAULT 0;");
+        SafeAddColumn("ALTER TABLE Categories ADD COLUMN StartMonth INTEGER DEFAULT 0;");
+        SafeAddColumn("ALTER TABLE Categories ADD COLUMN StartYear INTEGER DEFAULT 0;");
+        SafeAddColumn("ALTER TABLE Categories ADD COLUMN EndMonth INTEGER DEFAULT 0;");
+        SafeAddColumn("ALTER TABLE Categories ADD COLUMN EndYear INTEGER DEFAULT 0;");
     }
 }
