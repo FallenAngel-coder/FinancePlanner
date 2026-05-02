@@ -30,6 +30,18 @@ namespace FinancePlanner.Services
             _repository.Add(expense);
         }
 
+        // Оновлення транзакції
+        public void UpdateTransaction(Transaction transaction)
+        {
+            _repository.Update(transaction);
+        }
+
+        // Видалення транзакції
+        public void DeleteTransaction(int id)
+        {
+            _repository.Delete(id);
+        }
+
         // Підрахунок балансу з використанням вибраної стратегії
         public decimal CalculateBalance(IBalanceCalculationStrategy strategy)
         {
