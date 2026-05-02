@@ -1,13 +1,14 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using FinancePlanner.Models;
 
 namespace FinancePlanner.Forms
 {
     public class CategoryScopeForm : Form
     {
         public string CategoryName { get; private set; }
-        public int Scope { get; private set; } // 0=All, 1=This month, 2=From this month onwards
+        public CategoryScope Scope { get; private set; }
         
         private TextBox txtName;
         private RadioButton rbAll;
@@ -73,9 +74,9 @@ namespace FinancePlanner.Forms
                 }
             }
 
-            if (rbAll.Checked) Scope = 0;
-            else if (rbThisMonth.Checked) Scope = 1;
-            else if (rbFromNowOn.Checked) Scope = 2;
+            if (rbAll.Checked) Scope = CategoryScope.All;
+            else if (rbThisMonth.Checked) Scope = CategoryScope.ThisMonth;
+            else if (rbFromNowOn.Checked) Scope = CategoryScope.FromNowOn;
 
             DialogResult = DialogResult.OK;
             Close();

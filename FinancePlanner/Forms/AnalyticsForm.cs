@@ -20,6 +20,7 @@ namespace FinancePlanner.Forms
         private TransactionRepository _transactionRepo;
         private CategoryRepository _categoryRepo;
         private CategoryService _categoryService;
+        private Dictionary<int, string> _categoriesDict = new();
         
         private Label lblTotalIncome;
         private Label lblTotalExpenses;
@@ -165,6 +166,9 @@ namespace FinancePlanner.Forms
                 }
             }
 
+            // Будуємо словник з уже завантажених категорій (без зайвого запиту до БД)
+            _categoriesDict = allCategories.ToDictionary(c => c.Id, c => c.Name);
+
             // Тимчасово відключаємо обробник, щоб уникнути подвійного виклику LoadAnalytics
             _cmbType.SelectedIndexChanged -= (s, e) => LoadAnalytics();
             
@@ -245,11 +249,9 @@ namespace FinancePlanner.Forms
                 transactions = transactions.Where(t => filter.CategoryIds.Contains(t.CategoryId)).ToList();
             }
 
-            var categoriesDict = _categoryRepo.GetAll().ToDictionary(c => c.Id, c => c.Name);
-
             var displayList = transactions.Select(t => new {
                 Дата = t.Date.ToString("dd.MM.yyyy HH:mm"),
-                Категорія = t.CategoryId == 0 ? "(Без категорії)" : (categoriesDict.ContainsKey(t.CategoryId) ? categoriesDict[t.CategoryId] : "Невідома"),
+                Категорія = t.CategoryId == 0 ? "(Без категорії)" : (_categoriesDict.TryGetValue(t.CategoryId, out var catName) ? catName : "Невідома"),
                 Тип = t.Type == "Income" ? "Дохід" : "Витрата",
                 Сума = t.Amount.ToString("C"),
                 Опис = t.Description

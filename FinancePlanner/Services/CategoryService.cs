@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FinancePlanner.Models;
 using FinancePlanner.Repositories;
 
 namespace FinancePlanner.Services
@@ -71,31 +72,20 @@ namespace FinancePlanner.Services
                 .Where(c => IsCategoryActive(c, year, month))
                 .ToList();
 
-            var allTransactions = _transactionRepo.GetAll();
-
-            var monthTransactions = allTransactions
+            var monthTransactions = _transactionRepo.GetAll()
                 .Where(t => t.Date.Year == year && t.Date.Month == month)
                 .ToList();
 
-            var projections = new List<CategoryProjection>();
-
-            foreach (var category in categories)
+            return categories.Select(category => new CategoryProjection
             {
-                decimal actual = monthTransactions
+                CategoryId = category.Id,
+                Name = category.Name,
+                Type = category.Type,
+                Projected = category.ProjectedAmount,
+                Actual = monthTransactions
                     .Where(t => t.CategoryId == category.Id && t.Type == category.Type)
-                    .Sum(t => t.Amount);
-
-                projections.Add(new CategoryProjection
-                {
-                    CategoryId = category.Id,
-                    Name = category.Name,
-                    Type = category.Type,
-                    Projected = category.ProjectedAmount,
-                    Actual = actual
-                });
-            }
-
-            return projections;
+                    .Sum(t => t.Amount)
+            }).ToList();
         }
 
         public void UpdateProjection(int categoryId, decimal newProjection)
@@ -108,64 +98,77 @@ namespace FinancePlanner.Services
             }
         }
 
-        public void DeleteCategory(int categoryId, int scope, int currentYear, int currentMonth, int? reassignToId = null)
+        public void DeleteCategory(int categoryId, CategoryScope scope, int currentYear, int currentMonth, int? reassignToId = null)
         {
             var category = _categoryRepo.GetAll().FirstOrDefault(c => c.Id == categoryId);
             if (category == null) return;
 
-            if (scope == 0) // Всі
+            if (scope == CategoryScope.All)
             {
                 _transactionRepo.ReassignTransactions(categoryId, reassignToId);
                 _categoryRepo.Delete(categoryId);
             }
-            else if (scope == 1) // Тільки для цього місяця
+            else if (scope == CategoryScope.ThisMonth)
             {
                 _transactionRepo.ReassignTransactions(categoryId, reassignToId, currentYear, currentMonth);
 
-                int endMonth1 = currentMonth - 1;
-                int endYear1 = currentYear;
-                if (endMonth1 < 1) { endMonth1 = 12; endYear1--; }
-
-                int startMonth2 = currentMonth + 1;
-                int startYear2 = currentYear;
-                if (startMonth2 > 12) { startMonth2 = 1; startYear2++; }
+                var (prevYear, prevMonth) = PreviousYearMonth(currentYear, currentMonth);
+                var (nextYear, nextMonth) = NextYearMonth(currentYear, currentMonth);
 
                 // Створюємо продовження категорії, якщо вона не закінчується раніше
-                if (category.EndYear == 0 || (category.EndYear > startYear2) || (category.EndYear == startYear2 && category.EndMonth >= startMonth2))
+                if (category.EndYear == 0 || category.EndYear > nextYear || (category.EndYear == nextYear && category.EndMonth >= nextMonth))
                 {
-                    var catB = new Category { Name = category.Name, Type = category.Type, ProjectedAmount = category.ProjectedAmount, StartMonth = startMonth2, StartYear = startYear2, EndMonth = category.EndMonth, EndYear = category.EndYear };
-                    _categoryRepo.Add(catB);
+                    var catContinuation = new Category
+                    {
+                        Name = category.Name,
+                        Type = category.Type,
+                        ProjectedAmount = category.ProjectedAmount,
+                        StartMonth = nextMonth,
+                        StartYear = nextYear,
+                        EndMonth = category.EndMonth,
+                        EndYear = category.EndYear
+                    };
+                    _categoryRepo.Add(catContinuation);
                 }
 
-                category.EndMonth = endMonth1;
-                category.EndYear = endYear1;
+                category.EndMonth = prevMonth;
+                category.EndYear = prevYear;
                 _categoryRepo.Update(category);
             }
-            else if (scope == 2) // З цього місяця і далі
+            else if (scope == CategoryScope.FromNowOn)
             {
                 _transactionRepo.ReassignTransactions(categoryId, reassignToId, currentYear, currentMonth, true);
 
-                int endMonth1 = currentMonth - 1;
-                int endYear1 = currentYear;
-                if (endMonth1 < 1) { endMonth1 = 12; endYear1--; }
-
-                category.EndMonth = endMonth1;
-                category.EndYear = endYear1;
+                var (prevYear, prevMonth) = PreviousYearMonth(currentYear, currentMonth);
+                category.EndMonth = prevMonth;
+                category.EndYear = prevYear;
                 _categoryRepo.Update(category);
             }
         }
 
-        public void RenameCategory(int categoryId, string newName, int scope, int currentYear, int currentMonth)
+        private static (int year, int month) PreviousYearMonth(int year, int month)
+        {
+            if (month == 1) return (year - 1, 12);
+            return (year, month - 1);
+        }
+
+        private static (int year, int month) NextYearMonth(int year, int month)
+        {
+            if (month == 12) return (year + 1, 1);
+            return (year, month + 1);
+        }
+
+        public void RenameCategory(int categoryId, string newName, CategoryScope scope, int currentYear, int currentMonth)
         {
             var category = _categoryRepo.GetAll().FirstOrDefault(c => c.Id == categoryId);
             if (category == null) return;
 
-            if (scope == 0) // Всі
+            if (scope == CategoryScope.All)
             {
                 category.Name = newName;
                 _categoryRepo.Update(category);
             }
-            else if (scope == 1) // Тільки для цього місяця
+            else if (scope == CategoryScope.ThisMonth)
             {
                 // Створюємо нову категорію на 1 місяць
                 var tempCat = new Category { Name = newName, Type = category.Type, ProjectedAmount = category.ProjectedAmount, StartMonth = currentMonth, StartYear = currentYear, EndMonth = currentMonth, EndYear = currentYear };
@@ -175,9 +178,9 @@ namespace FinancePlanner.Services
                 int? newId = newCat?.Id;
 
                 // Виключаємо цей місяць з оригінальної категорії та переносимо транзакції
-                DeleteCategory(categoryId, 1, currentYear, currentMonth, newId);
+                DeleteCategory(categoryId, CategoryScope.ThisMonth, currentYear, currentMonth, newId);
             }
-            else if (scope == 2) // З цього місяця і далі
+            else if (scope == CategoryScope.FromNowOn)
             {
                 // Створюємо нову категорію
                 var newCat = new Category { Name = newName, Type = category.Type, ProjectedAmount = category.ProjectedAmount, StartMonth = currentMonth, StartYear = currentYear, EndMonth = category.EndMonth, EndYear = category.EndYear };
@@ -187,7 +190,7 @@ namespace FinancePlanner.Services
                 int? newId = newCatCreated?.Id;
 
                 // Завершуємо стару та переносимо транзакції
-                DeleteCategory(categoryId, 2, currentYear, currentMonth, newId);
+                DeleteCategory(categoryId, CategoryScope.FromNowOn, currentYear, currentMonth, newId);
             }
         }
     }

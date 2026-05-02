@@ -11,6 +11,7 @@ namespace FinancePlanner.Forms
         private TextBox txtName;
         private TextBox txtProjectedAmount;
         private DateTime _selectedDate;
+        private readonly CategoryRepository _categoryRepo = new CategoryRepository();
         
         private RadioButton rbAlways;
         private RadioButton rbFromNow;
@@ -81,11 +82,10 @@ namespace FinancePlanner.Forms
                     endYear = _selectedDate.Year;
                 }
 
-                var repo = new CategoryRepository();
-                var newCategory = new Category 
-                { 
-                    Name = name, 
-                    Type = _type, 
+                var newCategory = new Category
+                {
+                    Name = name,
+                    Type = _type,
                     ProjectedAmount = projectedAmount,
                     StartMonth = startMonth,
                     StartYear = startYear,
@@ -93,7 +93,7 @@ namespace FinancePlanner.Forms
                     EndYear = endYear
                 };
 
-                repo.Add(newCategory);
+                _categoryRepo.Add(newCategory);
                 DialogResult = DialogResult.OK;
                 Close();
             }
